@@ -6,6 +6,7 @@ import android.os.Bundle;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.KeyEvent;
 import android.view.inputmethod.EditorInfo;
 import android.widget.EditText;
@@ -35,7 +36,9 @@ import java.util.Map;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
+
 public class MainActivity extends AppCompatActivity implements AIListener {
+
 
     EditText userInput;
     RecyclerView recyclerView;
@@ -66,29 +69,81 @@ public class MainActivity extends AppCompatActivity implements AIListener {
                 AIConfiguration.RecognitionEngine.System);
         aiService = AIService.getService(this, config);
         aiService.setListener(this);
+        /*AIRequest request = new AIRequest("your text request");
+
+        try {
+            aiService.textRequest(request);
+        } catch (AIServiceException e) {
+            Log.d("ghapla", "ghapla kheyeche");
+            e.printStackTrace();
+        }
+        */
 
 
 
 
 
 
-
-        userInput.setOnEditorActionListener(new TextView.OnEditorActionListener() {
-            @Override
-            public boolean onEditorAction(TextView textView, int i, KeyEvent keyEvent) {
-                if (i == EditorInfo.IME_ACTION_SEND) {
-                    ResponseMessage responseMessage = new ResponseMessage(userInput.getText().toString(), true);
-                    responseMessageList.add(responseMessage);
-                    ResponseMessage responseMessage2 = new ResponseMessage("mora", false);
-                    responseMessageList.add(responseMessage2);
-                    messageAdapter.notifyDataSetChanged();
-                    if (!isLastVisible())
-                        recyclerView.smoothScrollToPosition(messageAdapter.getItemCount() - 1);
-                }
-                return false;
-            }
-        });
     }
+    private void sendRequest() {
+
+
+        final String contextString = String.valueOf(userInput.getText());
+
+
+
+        final AsyncTask<String, Void, AIResponse> task = new AsyncTask<String, Void, AIResponse>() {
+
+            private AIError aiError;
+
+            @Override
+            protected AIResponse doInBackground(final String... params) {
+                final AIRequest request = new AIRequest();
+                String query = params[0];
+                String event = params[1];
+
+                if (!TextUtils.isEmpty(query))
+                    request.setQuery(query);
+                if (!TextUtils.isEmpty(event))
+                    request.setEvent(new AIEvent(event));
+                final String contextString = params[2];
+                RequestExtras requestExtras = null;
+                if (!TextUtils.isEmpty(contextString)) {
+                    final List<AIContext> contexts = Collections.singletonList(new AIContext(contextString));
+                    requestExtras = new RequestExtras(contexts, null);
+                }
+
+               /* try {
+                    return aiService.textRequest(request, requestExtras);
+                } catch (final AIServiceException e) {
+                    aiError = new AIError(e);
+                    return null;
+                }*/
+                AIRequest request1 = new AIRequest(contextString);
+
+                try {
+                   return aiService.textRequest(request1);
+                } catch (AIServiceException e) {
+                    Log.d("ghapla", "ghapla kheyeche");
+                    e.printStackTrace();
+                    return null;
+                }
+            }
+
+            @Override
+            protected void onPostExecute(final AIResponse response) {
+                if (response != null) {
+                    onResult(response);
+                } else {
+                    onError(aiError);
+                }
+            }
+        };
+
+        task.execute("hello", "hello", contextString);
+    }
+
+
     boolean isLastVisible() {
         LinearLayoutManager layoutManager = ((LinearLayoutManager) recyclerView.getLayoutManager());
         int pos = layoutManager.findLastCompletelyVisibleItemPosition();
@@ -98,7 +153,14 @@ public class MainActivity extends AppCompatActivity implements AIListener {
 
     public void listenButtonOnClick(final View view) {
         aiService.startListening();
+      //  sendRequest();
     }
+    public void sendButtonOnClick(final View view) {
+        // aiService.startListening();
+        sendRequest();
+        userInput.setText("");
+    }
+
 
 
     public void onResult(final AIResponse response) {
@@ -116,6 +178,7 @@ public class MainActivity extends AppCompatActivity implements AIListener {
        /* resultTextView.setText("Query:" + result.getResolvedQuery() +
                 "\nAction: " + result.getFulfillment().getSpeech() +
                 "\nParameters: " + parameterString);*/
+       //userInput.setText(result.getResolvedQuery()+"yes");
         ResponseMessage responseMessage2 = new ResponseMessage(result.getResolvedQuery(), true);
         responseMessageList.add(responseMessage2);
         messageAdapter.notifyDataSetChanged();
@@ -125,7 +188,7 @@ public class MainActivity extends AppCompatActivity implements AIListener {
     }
     @Override
     public void onError(final AIError error) {
-        resultTextView.setText(error.toString());
+        //userInput.setText(error.toString());
     }
     @Override
     public void onListeningStarted() {}
